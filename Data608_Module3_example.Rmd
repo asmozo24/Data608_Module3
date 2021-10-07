@@ -1,0 +1,279 @@
+---
+title: "Data608_Module3"
+author: "Alexis Mekueko"
+date: "10/1/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r load-packages, results='hide',warning=FALSE, message=FALSE, echo=FALSE}
+
+##library(tidyverse) #loading all library needed for this assignment
+#remove.packages(tidyverse)
+#library(openintro)
+#library(lahman) #database for baseball
+library(caret)
+library(knitr)
+#library(markdown)
+#library(rmarkdown)
+library(dplyr)
+library(tidyr)
+library(naniar)
+library(reshape)
+library(ggplot2)
+library(qqplotr)
+library(stats)
+library(statsr)
+library(GGally)
+library(pdftools)
+library(correlation)
+library(Metrics)
+library(e1071)
+library(rocc)
+library(pROC)
+library(plm)
+library(car)
+#library(VIF)
+#library(MASS)
+#library(AICcmodavg)
+#library(gridExtra)
+#library(ggpubr)
+#library(glmulti)
+
+#install.packages("datarobot", dependencies = TRUE)
+
+library(datarobot)
+#install.packages("fpp3", dependencies = TRUE)
+library(fpp3)
+#install.packages("lubridate", dependencies = TRUE)
+library(lubridate)
+#install.packages("tsibble", dependencies = TRUE)
+library(tsibble)
+library(tsibbledata)
+#install.packages("USgas", dependencies = TRUE)
+#install.packages('Rcpp')
+library(Rcpp)
+#update.packages(Rcpp)
+library(USgas)
+library(MASS)
+library(forecast)
+set.seed(34332)
+
+
+```
+
+[Github Link](https://github.com/asmozo24/Data608_Module3)
+...
+[Web Link](https://rpubs.com/amekueko/817566)
+
+
+## Assignment
+Data about mortality from all 50 states and the District of Columbia.Please access it at https://github.com/charleyferrari/CUNY_DATA608/tree/master/module3/data.
+
+You are invited to gather more data from our provider, the CDC WONDER system, at https://wonder.cdc.gov 
+
+This assignment must be done in R. It must be done using the ‘shiny’ package.
+It is recommended you use an R package that supports interactive graphing such as plotly, or vegalite, but this is ​not​ required. Your apps ​must​ be deployed, I won’t be accepting raw files. Luckily, you can pretty easily deploy apps with a free account at shinyapps.io 
+
+### Question 1: As a researcher, you frequently compare mortality rates from particular causes across different States. You need a visualization that will let you see (for 2010 only) the crude mortality rate, across all States, from one cause (for example, Neoplasms, which are effectively cancers). Create a visualization that allows you to rank States by crude mortality for each cause of death.
+
+### Question 2: Often you are asked whether particular States are improving their mortality rates (per cause) faster than, or slower than, the national average. Create a visualization that lets your clients see this for themselves for one cause of death at the time. Keep in mind that the national average should be weighted by the national population.
+
+```{r mychunck1b, fig.width = 10, fig.height = 10}
+library(ggplot2)
+library(dplyr)
+library(shiny)
+
+df <- read.csv('https://raw.githubusercontent.com/charleyferrari/CUNY_DATA608/master/lecture3/Sample%20Code/hpi.csv')
+df$DATE <- as.POSIXct(strptime(df$DATE, format = '%m/%d/%y'))
+
+ui <- fluidPage(
+  headerPanel('Housing Price Explorer'),
+  sidebarPanel(
+    selectInput('seas', 'Seasonality', unique(df$Seasonality), selected='SA'),
+    selectInput('metro', 'Metro Area', unique(df$Metro), selected='Atlanta'),
+    selectInput('tier', 'Housing Tier', unique(df$Tier), selected='High')
+  ),
+  mainPanel(
+    plotOutput('plot1'),
+    verbatimTextOutput('stats')
+  )
+)
+
+server <- shinyServer(function(input, output, session) {
+  
+  selectedData <- reactive({
+    dfSlice <- df %>%
+      filter(Seasonality == input$seas, Metro == input$metro)
+  })
+  
+  output$plot1 <- renderPlot({
+    
+    dfSlice <- df %>%
+      filter(Seasonality == input$seas, Metro == input$metro)
+    
+    ggplot(selectedData(), aes(x = DATE, y = HPI, color = Tier)) +
+      geom_line()
+  })
+  
+  output$stats <- renderPrint({
+    dfSliceTier <- selectedData() %>%
+      filter(Tier == input$tier)
+    
+    summary(dfSliceTier$HPI)
+  })
+  
+})
+
+shinyApp(ui = ui, server = server)
+
+```
+
+
+```{r mychunck1a, fig.width = 10, fig.height = 10}
+library(ggplot2)
+library(dplyr)
+
+library(plotly)
+library(shiny)
+
+df <- read.csv('https://raw.githubusercontent.com/charleyferrari/CUNY_DATA608/master/lecture3/Sample%20Code/hpi.csv')
+df$DATE <- as.POSIXct(strptime(df$DATE, format = '%m/%d/%y'))
+
+ui <- fluidPage(
+  headerPanel('Housing Price Explorer'),
+  sidebarPanel(
+    selectInput('seas', 'Seasonality', unique(df$Seasonality), selected='SA'),
+    selectInput('metro', 'Metro Area', unique(df$Metro), selected='Atlanta'),
+    selectInput('tier', 'Housing Tier', unique(df$Tier), selected='High')
+  ),
+  mainPanel(
+    plotOutput('plot1'),
+    verbatimTextOutput('stats')
+  )
+)
+
+server <- function(input, output) {
+  
+  output$plot1 <- renderPlot({
+    
+    dfSlice <- df %>%
+      filter(Seasonality == input$seas, Metro == input$metro)
+    
+    ggplot(dfSlice, aes(x = DATE, y = HPI, color = Tier)) +
+      geom_line()
+  })
+  
+  output$stats <- renderPrint({
+    dfSlice <- df %>%
+      filter(Seasonality == input$seas, Metro == input$metro, Tier == input$tier)
+    
+    summary(dfSlice$HPI)
+  })
+  
+}
+
+shinyApp(ui = ui, server = server)
+
+```
+
+
+```{r mychunck1d, fig.width = 10, fig.height = 10}
+library(ggplot2)
+library(dplyr)
+library(plotly)
+library(shiny)
+
+df <- read.csv('https://raw.githubusercontent.com/charleyferrari/CUNY_DATA608/master/lecture3/Sample%20Code/hpi.csv')
+df$DATE <- as.POSIXct(strptime(df$DATE, format = '%m/%d/%y'))
+
+ui <- fluidPage(
+  headerPanel('Housing Price Explorer'),
+  sidebarPanel(
+    selectInput('metro', 'Metro Area', unique(df$Metro), selected='Atlanta')
+  ),
+  mainPanel(
+    plotOutput('plot1')
+  )
+)
+
+server <- function(input, output) {
+  
+  output$plot1 <- renderPlot({
+    
+    dfSlice <- df %>%
+      filter(Metro == input$metro, Seasonality=='SA')
+    
+    ggplot(dfSlice, aes(x = DATE, y = HPI, color = Tier)) +
+      geom_line()
+  })
+  
+}
+
+shinyApp(ui = ui, server = server)
+
+```
+
+
+```{r mychunck1c, fig.width = 10, fig.height = 10}
+library(ggplot2)
+library(dplyr)
+library(plotly)
+library(shiny)
+
+df <- read.csv('https://raw.githubusercontent.com/charleyferrari/CUNY_DATA608/master/lecture3/Sample%20Code/hpi.csv')
+df$DATE <- as.POSIXct(strptime(df$DATE, format = '%m/%d/%y'))
+
+ui <- fluidPage(
+  headerPanel('Housing Price Explorer'),
+  sidebarPanel(
+    selectInput('seas', 'Seasonality', unique(df$Seasonality), selected='SA'),
+    selectInput('metro', 'Metro Area', unique(df$Metro), selected='Atlanta'),
+    selectInput('tier', 'Housing Tier', unique(df$Tier), selected='High')
+  ),
+  mainPanel(
+    plotlyOutput('plot1'),
+    verbatimTextOutput('stats')
+  )
+)
+
+server <- function(input, output, session) {
+  
+
+  
+  output$plot1 <- renderPlotly({
+    
+    dfSlice <- df %>%
+      filter(Seasonality == input$seas, Metro == input$metro)
+    
+    plot_ly(dfSlice, x = ~DATE, y = ~HPI, color = ~Tier, type='scatter',
+            mode = 'lines')
+  })
+  
+  output$stats <- renderPrint({
+    dfSliceTier <- dfSlice %>%
+      filter(Tier == input$tier)
+    
+    summary(dfSliceTier$HPI)
+  })
+  
+}
+
+shinyApp(ui = ui, server = server)
+
+```
+
+
+```{r mychunck1ss, fig.width = 10, fig.height = 10}
+
+
+```
+
+
+
+

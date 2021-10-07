@@ -1,0 +1,212 @@
+---
+title: "Data608_Module3"
+author: "Alexis Mekueko"
+date: "10/1/2021"
+output: html_document
+#runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r load-packages, results='hide',warning=FALSE, message=FALSE, echo=FALSE}
+
+library(tidyverse) #loading all library needed for this assignment
+
+library(knitr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(pdftools)
+
+set.seed(34332)
+
+
+```
+
+[Github Link](https://github.com/asmozo24/Data608_Module3)
+...
+[Web Link](https://rpubs.com/amekueko/817566)
+
+
+## Assignment
+Data about mortality from all 50 states and the District of Columbia.Please access it at https://github.com/charleyferrari/CUNY_DATA608/tree/master/module3/data.
+
+You are invited to gather more data from our provider, the CDC WONDER system, at https://wonder.cdc.gov 
+
+This assignment must be done in R. It must be done using the ‘shiny’ package.
+It is recommended you use an R package that supports interactive graphing such as plotly, or vegalite, but this is ​not​ required. Your apps ​must​ be deployed, I won’t be accepting raw files. Luckily, you can pretty easily deploy apps with a free account at shinyapps.io 
+
+#### Question 1: As a researcher, you frequently compare mortality rates from particular causes across different States. You need a visualization that will let you see (for 2010 only) the crude mortality rate, across all States, from one cause (for example, Neoplasms, which are effectively cancers). Create a visualization that allows you to rank States by crude mortality for each cause of death.
+
+#### Question 2: Often you are asked whether particular States are improving their mortality rates (per cause) faster than, or slower than, the national average. Create a visualization that lets your clients see this for themselves for one cause of death at the time. Keep in mind that the national average should be weighted by the national population.
+
+## Data Acquisition
+
+There is one dataset recorded by Centers for Disease Control and Prevention (CDC) about mortality from 1999-2010 for U.S. States. The dataset is provided by Instructor:Charley Ferrari. This data comes in csv files and we will use R-programming language to acquire the dataset pre-stored in Github repository. 
+
+```{r mychunck1, fig.width = 10, fig.height = 10}
+
+mortality_df <- read.csv("https://raw.githubusercontent.com/charleyferrari/CUNY_DATA_608/master/module3/data/cleaned-cdc-mortality-1999-2010-2.csv", header = TRUE, stringsAsFactors=FALSE)
+head(mortality_df)
+
+
+```
+
+### Data Structure
+ 
+The dataset include 9961 observations and 06 variables. All values are numerical of type integer excepted the variable "State" that has a character datatype. Luckly, there is no missiing data. Therefore, we don't have to deal with missing data.
+
+
+```{r mychunck1ws, fig.width = 10, fig.height = 10}
+str(mortality_df)
+#view(mortality_df)
+sum(is.na(mortality_df))
+
+summary(mortality_df)
+
+```
+
+
+## Connecting with Shiny App
+
+```{r mychunck1as, fig.width = 10, fig.height = 10}
+
+library(rsconnect)
+library(shiny)
+library(plotly)
+library(RCurl)
+
+#rsconnect::setAccountInfo(name='atmdata',
+#			  token='80983210469ED2367F14BE1B8BFD758E',
+#			  secret='<SECRET>')
+
+ rsconnect::setAccountInfo(name='atmdata',
+ 			  token='80983210469ED2367F14BE1B8BFD758E',
+ 			  secret='Ratmm7bb9NF0PkIrLyNdInYKJS16yea8gMO7F9rP')
+
+#rsconnect::deployApp('path/to/your/app')
+
+
+```
+
+### Data Visualization 
+Let's explore the CDC report for the state of Oregon from 1999-2010. We could also transform the data into time series to do some forecasting. We could also focus on other variables and this can be done by filter() or select().
+
+```{r mychunck2fsd, fig.width = 10, fig.height = 10}
+
+#mortality_df %>%
+  #group_by(State) %>%
+  #mutate() %>%
+  #arrange(desc()) %>%
+  #top_n(15)%>%
+  #filter() %>%# adjusting the legend
+  #autoplot(Deaths) +   labs(title= "GDP per capital", y = "Currency in US Dollars")
+
+df1 <- mortality_df %>%
+       filter(State == "OR")
+
+ggplot(df1, aes(x = Year, y = Deaths,
+                      group = interaction(State, ICD.Chapter),
+                      colour = ICD.Chapter)) +
+ geom_line() + labs(title= "Centers for Disease Control and Prevention (CDC) Report on Diseases in Oregon 19990 2010", y = "Number of Deaths")
+
+df2s <- mortality_df %>%
+       filter(State == "OR" | State == "WA" | State == "CA") %>%
+       filter(ICD.Chapter == "Neoplasms")
+
+head(df2s)
+ggplot(df2s, aes(x = Year, y = Deaths,
+                      group = interaction(State, ICD.Chapter),
+                      colour = State)) +
+ geom_line() + labs(title= "Comparing Centers for Disease Control and Prevention (CDC) Report on Neoplasms Disease in California, Oregon and Washington 1990-2010", y = "Number of Deaths")
+# df1as <- mortality_df %>%
+#   dplyr::select(Year, Deaths, Population, Crude.Rate) %>% ## can remove some variables
+#   gather(key = "variable", value = "value", -Year)
+# ggplot(df1as, aes(x = Year, y = value)) + 
+#   geom_line(aes(color = variable, linetype = variable)) + 
+#   scale_color_manual(values = c("darkred", "steelblue"))
+
+#my1 <- ts (name of the data frame, [,2], start = year, 
+#           month, date, frequency = in my case it was 31)
+
+
+#df3 <- mortality_df %>%
+#       filter(ICD.Chapter == "Neoplasms" & Year == 2010 )
+
+```
+
+
+```{r mychunck2d, fig.width = 10, fig.height = 10}
+
+# Example of UI with fluidPage
+ui <- fluidPage(
+      # Application title
+    titlePanel("Centers for Disease Control and Prevention (CDC) Report on Neoplasms Disease in U.S. State 2010"),
+        # Sidebar with a slider input
+
+    #sidebarLayout(
+        sidebarPanel(
+          # add the selected input
+            selectInput("Infections","Cause of Death", unique(mortality_df$ICD.Chapter)),
+        
+        mainPanel(
+            htmlOutput(outputId = "Select"), 
+            #plot to be display
+            plotOutput("trend")
+            )
+    )
+)
+
+#server logic 
+server <- shinyServer(function(input, output, session){
+    df <- reactive({mortality_df %>%
+                    filter(Year == 2010 & ICD.Chapter == input$Infection)
+    })
+    output$Select <- renderText({
+        paste("Death Caused by Neoplasms Disease", input$Infection)
+    })
+    output$trend <- renderPlot({
+         ggplot(df(), aes(x=reorder(State, -Crude.Rate), y = Crude.Rate))+
+            geom_col(fill='FF0000') + 
+            coord_flip() +
+            geom_text(aes(label=Crude.Rate), size = 2, hjust = -0.2)+
+            labs(x= "State", y = "Crude Rate")+
+            theme_get()
+        
+    }
+    )
+})
+shinyApp(ui = ui, server = server, options = list(height = 500, width = 900))
+#runApp()
+#deployApp()
+
+
+```
+
+
+
+
+```{r mychunck2s, fig.width = 10, fig.height = 10}
+
+
+```
+
+
+
+```{r mychunck6c, fig.width = 10, fig.height = 10}
+
+
+```
+
+
+
+
+```{r mychunck5a, fig.width = 10, fig.height = 10}
+
+
+
+```
